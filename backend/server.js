@@ -6,12 +6,13 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const multer = require('multer'); // For file uploads
 const path = require('path');     // For file paths
-const fs = require('fs');         // For file system operations (deleting files)
+//const fs = require('fs');         // For file system operations (deleting files)
 
 const app = express();
 const port = 3000;
 
 const JWT_SECRET = 'your-super-secret-key-that-is-long-and-random';
+require('dotenv').config();
 
 // Middleware setup
 app.use(cors());
@@ -23,17 +24,27 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // --- Database Connection ---
 // Use a connection pool for better performance and to handle multiple/concurrent requests
+const fs = require('fs');
+
 const dbConfig = {
-    host: 'localhost',
-    user: 'root',
-    password: 'Apurv@123', // IMPORTANT: Use your MySQL password here
-    database: 'real_estate_db',
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+    port: process.env.DB_PORT || 3306,
+    ssl: {
+        ca: fs.readFileSync(path.join(__dirname, 'ca.pem')), // Trust Aiven CA
+        rejectUnauthorized: true
+    },
     connectionLimit: 10,
     waitForConnections: true,
     queueLimit: 0
 };
 
+
 const db = mysql.createPool(dbConfig).promise();
+
+
 
 // --- Multer Configuration for File Uploads ---
 const storage = multer.diskStorage({
