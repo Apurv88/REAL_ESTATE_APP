@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dream Home</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .property-card {
+            transition: all 0.3s ease-in-out;
+            display: flex;
+            flex-direction: column;
+        }
+        .property-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .sold-banner {
+            position: absolute;
+            top: 20px;
+            right: -30px;
+            background-color: #ef4444; 
+            color: white;
+            padding: 4px 40px;
+            transform: rotate(45deg);
+            font-weight: bold;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            z-index: 10;
+        }
+        .pending-banner {
+            position: absolute;
+            top: 20px;
+            right: -30px;
+            background-color: #f59e0b; 
+            color: white;
+            padding: 4px 40px;
+            transform: rotate(45deg);
+            font-weight: bold;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            z-index: 10;
+        }
+        .view { display: none; }
+        .message-box {
+            position: fixed; top: 20px; right: 20px; padding: 1rem 1.5rem;
+            border-radius: 0.5rem; color: white; font-weight: bold; z-index: 1000;
+            opacity: 0; transform: translateY(-20px);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        .message-box.show { opacity: 1; transform: translateY(0); }
+        .message-box.success { background-color: #22c55e; } /* green-500 */
+        .message-box.error { background-color: #ef4444; } /* red-500 */
+        .dashboard-card { background-color: white; border-radius: 0.5rem; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        
+        /* Image Carousel Styles */
+        .carousel-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16 / 10;
+            overflow: hidden;
+            background-color: #e5e7eb; /* gray-200 */
+        }
+        .carousel-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            position: absolute;
+            transition: opacity 0.3s ease-in-out;
+            opacity: 0;
+        }
+        .carousel-image.active {
+            opacity: 1;
+        }
+        .carousel-button {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background-color: rgba(0, 0, 0, 0.4);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 2.5rem;
+            height: 2.5rem;
+            font-size: 1.5rem;
+            cursor: pointer;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .carousel-button.prev { left: 0.5rem; }
+        .carousel-button.next { right: 0.5rem; }
+        .carousel-counter {
+            position: absolute;
+            bottom: 0.5rem;
+            right: 0.5rem;
+            background-color: rgba(0, 0, 0, 0.6);
+            color: white;
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.5rem;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans">
+
+   
+    <nav class="bg-white shadow-md sticky top-0 z-50">
+        <div class="container mx-auto px-8 py-4 flex justify-between items-center">
+            <a href="#" id="brand-logo" class="text-2xl font-bold text-gray-800">Dream Home</a>
+           
+            <div id="nav-logged-out" class="space-x-4">
+                <button id="login-btn" class="text-gray-600 hover:text-indigo-600 font-semibold">Login</button>
+                <button id="register-btn" class="bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700">Register</button>
+            </div>
+           
+            <div id="nav-logged-in" class="hidden items-center space-x-4">
+                <span id="welcome-message" class="text-gray-700 font-semibold"></span>
+                <button id="logout-btn" class="bg-red-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-600">Logout</button>
+            </div>
+        </div>
+    </nav>
+    
+    <div id="message-box-container"></div>
+
+    
+    <div id="listings-view" class="view container mx-auto p-8">
+        <h1 class="text-4xl font-bold text-center text-gray-800 mb-2">Find Your Dream Home</h1>
+        <p class="text-center text-gray-600 mb-12">The best property listings, curated just for you.</p>
+        <div id="property-listings" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <p id="loading-message" class="text-gray-500 col-span-full text-center">Loading properties...</p>
+        </div>
+    </div>
+
+    <div id="login-view" class="view container mx-auto p-8">
+        <div class="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md">
+            <h2 class="text-3xl font-bold text-center text-gray-800 mb-6">Login</h2>
+            <form id="login-form">
+                <div class="mb-4">
+                    <label for="login-email" class="block text-gray-700 font-semibold mb-2">Email Address</label>
+                    <input type="email" id="login-email" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" required>
+                </div>
+                <div class="mb-6">
+                    <label for="login-password" class="block text-gray-700 font-semibold mb-2">Password</label>
+                    <input type="password" id="login-password" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" required>
+                </div>
+                <button type="submit" class="w-full bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700">Login</button>
+            </form>
+            <p class="text-center text-gray-600 mt-4">
+                Don't have an account? <a href="#" id="show-register-link" class="text-indigo-600 hover:underline font-semibold">Register here</a>
+            </p>
+        </div>
+    </div>
+
+    <div id="register-view" class="view container mx-auto p-8">
+        <div class="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md">
+            <h2 class="text-3xl font-bold text-center text-gray-800 mb-6">Create Your Account</h2>
+            <form id="register-form">
+                <div class="mb-4">
+                    <label for="register-name" class="block text-gray-700 font-semibold mb-2">Full Name</label>
+                    <input type="text" id="register-name" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" required>
+                </div>
+                <div class="mb-4">
+                    <label for="register-email" class="block text-gray-700 font-semibold mb-2">Email Address</label>
+                    <input type="email" id="register-email" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" required>
+                </div>
+                <div class="mb-4">
+                    <label for="register-password" class="block text-gray-700 font-semibold mb-2">Password</label>
+                    <input type="password" id="register-password" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" required>
+                </div>
+                <div class="mb-6">
+                    <label for="user-type" class="block text-gray-700 font-semibold mb-2">I am a...</label>
+                    <select id="user-type" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="buyer">Buyer</option>
+                        <option value="seller">Seller</option>
+                        <option value="agent">Agent</option>
+                    </select>
+                </div>
+                <button type="submit" class="w-full bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700">Register</button>
+            </form>
+            <p class="text-center text-gray-600 mt-4">
+                Already have an account? <a href="#" id="show-login-link" class="text-indigo-600 hover:underline font-semibold">Login here</a>
+            </p>
+        </div>
+    </div>
+    
+    
+    <div id="buyer-dashboard-view" class="view container mx-auto p-8 bg-blue-50 min-h-screen">
+        <h2 class="text-3xl font-bold text-blue-800 mb-6">Available Properties</h2>
+        <div id="buyer-property-listings" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"></div>
+    </div>
+
+    <div id="seller-dashboard-view" class="view container mx-auto p-8 bg-orange-50 min-h-screen">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-3xl font-bold text-orange-800">Seller Dashboard</h2>
+            <button id="show-add-property-form-btn" class="bg-orange-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-orange-700">+ List New Property</button>
+        </div>
+
+        
+        <div id="add-property-form-container" class="dashboard-card mb-8" style="display: none;">
+            <h3 class="text-2xl font-semibold text-gray-800 mb-4">New Property Details</h3>
+            <form id="add-property-form">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="address" class="block text-gray-700 font-semibold mb-2">Address</label>
+                        <input type="text" id="address" class="w-full px-3 py-2 border rounded-lg" required>
+                    </div>
+                    <div>
+                        <label for="city" class="block text-gray-700 font-semibold mb-2">City</label>
+                        <input type="text" id="city" class="w-full px-3 py-2 border rounded-lg" required>
+                    </div>
+                     <div>
+                        <label for="price" class="block text-gray-700 font-semibold mb-2">Price (₹)</label>
+                        <input type="number" id="price" min="0" class="w-full px-3 py-2 border rounded-lg" required>
+                    </div>
+                     <div>
+                        <label for="bedrooms" class="block text-gray-700 font-semibold mb-2">Bedrooms</label>
+                        <input type="number" id="bedrooms" min="0" class="w-full px-3 py-2 border rounded-lg" required>
+                    </div>
+                     <div>
+                        <label for="bathrooms" class="block text-gray-700 font-semibold mb-2">Bathrooms</label>
+                        <input type="number" id="bathrooms" min="0" step="0.5" class="w-full px-3 py-2 border rounded-lg" required>
+                    </div>
+                     <div>
+                        <label for="square_feet" class="block text-gray-700 font-semibold mb-2">Area (sqft)</label>
+                        <input type="number" id="square_feet" min="0" class="w-full px-3 py-2 border rounded-lg" required>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label for="description" class="block text-gray-700 font-semibold mb-2">Description</label>
+                        <textarea id="description" rows="4" class="w-full px-3 py-2 border rounded-lg" required></textarea>
+                    </div>
+                    
+                    <div class="md:col-span-2">
+                        <label for="propertyImages" class="block text-gray-700 font-semibold mb-2">Property Images (Select one or more)</label>
+                        <input type="file" id="propertyImages" name="propertyImages" class="w-full px-3 py-2 border rounded-lg" multiple required>
+                    </div>
+                </div>
+                <div class="mt-6 flex justify-end space-x-4">
+                     <button type="button" id="cancel-add-property-btn" class="bg-gray-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-600">Cancel</button>
+                    <button type="submit" class="bg-orange-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-orange-700">Submit Listing</button>
+                </div>
+            </form>
+        </div>
+        
+        <h3 class="text-2xl font-bold text-orange-800 mb-4">My Current Listings</h3>
+        <div id="seller-property-listings" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+           
+        </div>
+    </div>
+
+    <div id="agent-dashboard-view" class="view container mx-auto p-8 bg-green-50 min-h-screen">
+        <h2 class="text-3xl font-bold text-green-800 mb-6">Market Portfolio</h2>
+        <div id="agent-property-listings" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"></div>
+    </div>
+
+
+    <script>
+       
+        const API_BASE_URL = 'http://localhost:3000/api';
+        const SERVER_ORIGIN = 'http://localhost:3000';
+        const listingsContainer = document.getElementById('property-listings');
+        const buyerListingsContainer = document.getElementById('buyer-property-listings');
+        const agentListingsContainer = document.getElementById('agent-property-listings');
+        const sellerListingsContainer = document.getElementById('seller-property-listings');
+        const loadingMessage = document.getElementById('loading-message');
+        let allProperties = [];
+
+       
+        function renderProperties(container, properties, role = null) {
+            if (!container) return;
+            container.innerHTML = '';
+            
+            if (properties.length === 0) {
+                container.innerHTML = '<p class="text-gray-500 col-span-full text-center">No properties found.</p>';
+                return;
+            }
+
+            properties.forEach(property => {
+                const card = document.createElement('div');
+                card.className = 'property-card bg-white rounded-lg overflow-hidden shadow-md relative';
+                
+                let statusBanner = '';
+                if (property.status === 'Sold') {
+                    statusBanner = `<div class="sold-banner">Sold</div>`;
+                } else if (property.status === 'Pending') {
+                    statusBanner = `<div class="pending-banner">Pending</div>`;
+                }
+
+                const priceColor = (property.status === 'Sold' || property.status === 'Pending') ? 'text-gray-400' : 'text-green-600';
+                const priceStrikethrough = (property.status === 'Sold' || property.status === 'Pending') ? 'line-through' : '';
+
+                
+                const images = property.images ? property.images.split(',') : [];
+                let imageCarouselHTML = '';
+                if (images.length > 0) {
+                    const imageElements = images.map((img, index) => 
+                        `<img src="${SERVER_ORIGIN}/${img.replace(/\\/g, '/')}" alt="Property Image" class="carousel-image ${index === 0 ? 'active' : ''}" onerror="this.src='https://placehold.co/600x400/e2e8f0/94a3b8?text=Image+Not+Found'; this.onerror=null;">`
+                    ).join('');
+                    
+                    const buttonsHTML = images.length > 1 ? `
+                        <button class="carousel-button prev" data-id="${property.property_id}">&#10094;</button>
+                        <button class="carousel-button next" data-id="${property.property_id}">&#10095;</button>
+                        <div class="carousel-counter">1 / ${images.length}</div>
+                    ` : '';
+
+                    imageCarouselHTML = `
+                        <div class="carousel-container" data-property-id="${property.property_id}" data-current-index="0" data-total-images="${images.length}">
+                            ${imageElements}
+                            ${buttonsHTML}
+                        </div>`;
+                } else {
+                    imageCarouselHTML = `<div class="carousel-container"><img src="https://placehold.co/600x400/e2e8f0/94a3b8?text=No+Image+Available" alt="No Image" class="carousel-image active"></div>`;
+                }
+
+                
+                let actionButtonsHTML = '';
+                if (property.status === 'For Sale') {
+                    if (role === 'buyer') {
+                        actionButtonsHTML = `
+                            <button class="buy-btn mt-4 w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700" data-id="${property.property_id}">
+                                Buy Property (Mark as Pending)
+                            </button>`;
+                    } else if (role === 'seller' || role === 'agent') {
+                        actionButtonsHTML = `
+                            <div class="mt-4 grid grid-cols-2 gap-2">
+                                <button class="mark-sold-btn bg-red-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-600" data-id="${property.property_id}">Sold</button>
+                                <button class="mark-pending-btn bg-amber-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-amber-600" data-id="${property.property_id}">Pending</button>
+                            </div>
+                            <button class="delete-btn mt-2 w-full bg-gray-700 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-800" data-id="${property.property_id}">Delete</button>
+                        `;
+                    }
+                } else if ((role === 'seller' || role === 'agent') && property.status !== 'Sold') {
+                     
+                     actionButtonsHTML = `
+                            <div class="mt-4 grid grid-cols-2 gap-2">
+                                <button class="mark-sold-btn bg-red-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-600" data-id="${property.property_id}">Mark as Sold</button>
+                                <button class="delete-btn bg-gray-700 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-800" data-id="${property.property_id}">Delete</button>
+                            </div>
+                        `;
+                }
+
+                card.innerHTML = `
+                    ${statusBanner}
+                    ${imageCarouselHTML}
+                    <div class="p-6 flex flex-col flex-grow">
+                        <div class="flex-grow">
+                            <h2 class="text-2xl font-bold text-gray-900 mb-2">${property.address}</h2>
+                            <p class="text-md text-gray-600 mb-4">${property.city}</p>
+                            <p class="text-3xl font-extrabold ${priceColor} ${priceStrikethrough} mb-4">₹${new Intl.NumberFormat('en-IN').format(property.price)}</p>
+                            <div class="flex justify-between text-sm text-gray-700 mb-4 border-t pt-4">
+                                <span><span class="font-bold">${property.bedrooms}</span> Beds</span>
+                                <span><span class="font-bold">${property.bathrooms}</span> Baths</span>
+                                <span><span class="font-bold">${property.square_feet}</span> sqft</span>
+                            </div>
+                            <p class="text-gray-700 mb-4">${property.description}</p>
+                        </div>
+                        <div class="border-t pt-4 mt-auto">
+                            <p class="font-semibold text-gray-800">Listed by:</p>
+                            <p class="text-gray-600">${property.first_name} ${property.last_name}</p>
+                            <p class="text-sm text-gray-500">${property.agent_email}</p>
+                            ${actionButtonsHTML}
+                        </div>
+                    </div>`;
+                container.appendChild(card);
+            });
+        }
+
+        async function fetchProperties() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/properties`);
+                if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+                allProperties = await response.json();
+                
+                if(loadingMessage) loadingMessage.style.display = 'none';
+
+                
+                const user = JSON.parse(localStorage.getItem('user'));
+                
+                renderProperties(listingsContainer, allProperties, null); // Public view
+                renderProperties(buyerListingsContainer, allProperties, 'buyer');
+                renderProperties(agentListingsContainer, allProperties, 'agent');
+                renderProperties(sellerListingsContainer, allProperties, 'seller');
+
+            } catch (error) {
+                console.error("Failed to fetch properties:", error);
+                if(loadingMessage) loadingMessage.style.display = 'none';
+                if(listingsContainer) listingsContainer.innerHTML = `<p class="text-red-500 col-span-full text-center">Error loading properties. Please make sure the backend server is running.</p>`;
+            }
+        }
+        
+        // --- UI Navigation ---
+        const navLoggedIn = document.getElementById('nav-logged-in');
+        const navLoggedOut = document.getElementById('nav-logged-out');
+        const welcomeMessage = document.getElementById('welcome-message');
+        const logoutBtn = document.getElementById('logout-btn');
+        const loginBtn = document.getElementById('login-btn');
+        const registerBtn = document.getElementById('register-btn');
+        const brandLogo = document.getElementById('brand-logo');
+        const showRegisterLink = document.getElementById('show-register-link');
+        const showLoginLink = document.getElementById('show-login-link');
+        const loginForm = document.getElementById('login-form');
+        const registerForm = document.getElementById('register-form');
+        const views = document.querySelectorAll('.view');
+        const messageBoxContainer = document.getElementById('message-box-container');
+        
+        const showAddPropertyFormBtn = document.getElementById('show-add-property-form-btn');
+        const addPropertyFormContainer = document.getElementById('add-property-form-container');
+        const addPropertyForm = document.getElementById('add-property-form');
+        const cancelAddPropertyBtn = document.getElementById('cancel-add-property-btn');
+
+        function showMessage(message, type = 'success') {
+            const messageBox = document.createElement('div');
+            messageBox.className = `message-box ${type}`;
+            messageBox.textContent = message;
+            messageBoxContainer.appendChild(messageBox);
+            setTimeout(() => { messageBox.classList.add('show'); }, 10);
+            setTimeout(() => {
+                messageBox.classList.remove('show');
+                setTimeout(() => messageBox.remove(), 300);
+            }, 3000);
+        }
+
+        function showView(viewId) {
+            views.forEach(view => view.style.display = 'none');
+            document.getElementById(viewId).style.display = 'block';
+        }
+        
+        function updateUIForAuthState() {
+            const token = localStorage.getItem('token');
+            const user = JSON.parse(localStorage.getItem('user'));
+
+            if (token && user) {
+                navLoggedOut.style.display = 'none';
+                navLoggedIn.style.display = 'flex';
+                welcomeMessage.textContent = `Welcome, ${user.name} (${user.role})`;
+                showDashboard(user.role);
+            } else {
+                navLoggedOut.style.display = 'block';
+                navLoggedIn.style.display = 'none';
+                showView('login-view'); // Default to login view if not auth'd
+            }
+        }
+        
+        function showDashboard(role) {
+            switch (role) {
+                case 'buyer':
+                    showView('buyer-dashboard-view');
+                    break;
+                case 'seller':
+                    showView('seller-dashboard-view');
+                    break;
+                case 'agent':
+                    showView('agent-dashboard-view');
+                    break;
+                default:
+                    showView('login-view');
+            }
+        }
+        
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            showMessage('You have been logged out.');
+            updateUIForAuthState();
+        }
+
+        loginBtn.addEventListener('click', () => showView('login-view'));
+        registerBtn.addEventListener('click', () => showView('register-view'));
+        brandLogo.addEventListener('click', (e) => {
+            e.preventDefault();
+            const user = JSON.parse(localStorage.getItem('user'));
+            if (user) {
+                showDashboard(user.role);
+            } else {
+                showView('login-view');
+            }
+        });
+        showRegisterLink.addEventListener('click', (e) => { e.preventDefault(); showView('register-view'); });
+        showLoginLink.addEventListener('click', (e) => { e.preventDefault(); showView('login-view'); });
+        logoutBtn.addEventListener('click', logout);
+
+        // --- Auth Forms ---
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password }),
+                });
+
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.message || 'Login failed');
+                localStorage.setItem('token', result.token);
+                localStorage.setItem('user', JSON.stringify(result.user));
+                showMessage(result.message, 'success');
+                loginForm.reset();
+                updateUIForAuthState();
+                fetchProperties(); // Re-fetch properties to show correct buttons
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
+        });
+        
+        registerForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('register-name').value;
+            const email = document.getElementById('register-email').value;
+            const password = document.getElementById('register-password').value;
+            const userType = document.getElementById('user-type').value;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', },
+                    body: JSON.stringify({ name, email, password, userType }),
+                });
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.message || 'Registration failed');
+                showMessage(result.message, 'success');
+                registerForm.reset();
+                showView('login-view');
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
+        });
+
+        showAddPropertyFormBtn.addEventListener('click', () => {
+            addPropertyFormContainer.style.display = 'block';
+        });
+
+        cancelAddPropertyBtn.addEventListener('click', () => {
+            addPropertyFormContainer.style.display = 'none';
+            addPropertyForm.reset();
+        });
+
+        addPropertyForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const token = localStorage.getItem('token');
+            if (!token) {
+                showMessage('You must be logged in to list a property.', 'error');
+                return;
+            }
+
+            // Client-side validation
+            const price = parseFloat(document.getElementById('price').value);
+            const bedrooms = parseInt(document.getElementById('bedrooms').value);
+            const bathrooms = parseFloat(document.getElementById('bathrooms').value);
+            const square_feet = parseInt(document.getElementById('square_feet').value);
+            const images = document.getElementById('propertyImages').files;
+
+            if (isNaN(price) || price <= 0) { showMessage('Please enter a valid price.', 'error'); return; }
+            if (isNaN(bedrooms) || bedrooms <= 0) { showMessage('Please enter a valid number of bedrooms.', 'error'); return; }
+            if (isNaN(bathrooms) || bathrooms <= 0) { showMessage('Please enter a valid number of bathrooms.', 'error'); return; }
+            if (isNaN(square_feet) || square_feet <= 0) { showMessage('Please enter a valid square footage.', 'error'); return; }
+            if (images.length === 0) { showMessage('Please upload at least one image.', 'error'); return; }
+
+            // Use FormData for file uploads
+            const formData = new FormData();
+            formData.append('address', document.getElementById('address').value);
+            formData.append('city', document.getElementById('city').value);
+            formData.append('price', price);
+            formData.append('bedrooms', bedrooms);
+            formData.append('bathrooms', bathrooms);
+            formData.append('square_feet', square_feet);
+            formData.append('description', document.getElementById('description').value);
+            
+            // Append all files
+            for (let i = 0; i < images.length; i++) {
+                formData.append('propertyImages', images[i]);
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/properties`, {
+                    method: 'POST',
+                    headers: {
+                       
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: formData,
+                });
+
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.message || 'Failed to list property');
+                
+                showMessage(result.message, 'success');
+                addPropertyForm.reset();
+                addPropertyFormContainer.style.display = 'none';
+                fetchProperties(); 
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
+        });
+
+      
+        async function updatePropertyStatus(id, newStatus) {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                showMessage('You must be logged in to perform this action.', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/properties/${id}/status`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ newStatus })
+                });
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.message);
+
+                showMessage(result.message, 'success');
+                fetchProperties(); // Refresh all listings
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
+        }
+
+        async function deleteProperty(id) {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                showMessage('You must be logged in to perform this action.', 'error');
+                return;
+            }
+
+           
+            if (!window.confirm("Are you sure you want to delete this property? This action cannot be undone.")) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/properties/${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.message);
+
+                showMessage(result.message, 'success');
+                fetchProperties(); // Refresh all listings
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
+        }
+
+        document.addEventListener('click', (e) => {
+            const target = e.target;
+
+            // Carousel Logic
+            if (target.classList.contains('carousel-button')) {
+                e.preventDefault();
+                const container = target.closest('.carousel-container');
+                const propertyId = container.dataset.propertyId;
+                let currentIndex = parseInt(container.dataset.currentIndex);
+                const totalImages = parseInt(container.dataset.totalImages);
+                const images = container.querySelectorAll('.carousel-image');
+                const counter = container.querySelector('.carousel-counter');
+
+                // Hide current image
+                images[currentIndex].classList.remove('active');
+
+                if (target.classList.contains('next')) {
+                    currentIndex = (currentIndex + 1) % totalImages;
+                } else if (target.classList.contains('prev')) {
+                    currentIndex = (currentIndex - 1 + totalImages) % totalImages;
+                }
+
+                // Show new image
+                images[currentIndex].classList.add('active');
+                container.dataset.currentIndex = currentIndex;
+                if (counter) {
+                    counter.textContent = `${currentIndex + 1} / ${totalImages}`;
+                }
+            }
+
+            // Property Action Button Logic
+            const propertyId = target.dataset.id;
+            if (!propertyId) return; // Not an action button
+
+            if (target.classList.contains('buy-btn')) {
+                updatePropertyStatus(propertyId, 'Pending');
+            } else if (target.classList.contains('mark-sold-btn')) {
+                updatePropertyStatus(propertyId, 'Sold');
+            } else if (target.classList.contains('mark-pending-btn')) {
+                updatePropertyStatus(propertyId, 'Pending');
+            } else if (target.classList.contains('delete-btn')) {
+                deleteProperty(propertyId);
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+             fetchProperties();
+             updateUIForAuthState();
+        });
+    </script>
+</body>
+</html>
+
